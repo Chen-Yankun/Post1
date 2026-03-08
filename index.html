@@ -61,7 +61,7 @@
 <body class="bg-gray-100 h-screen flex overflow-hidden">
 
     <!-- 左侧控制面板 -->
-    <div class="w-96 bg-white shadow-xl flex flex-col z-10 h-full">
+    <div class="w-96 bg-white shadow-xl flex flex-col z-10 h-full shrink-0">
         <div class="p-6 border-b">
             <h1 class="text-2xl font-black text-gray-800 tracking-tight">Postermagic.</h1>
             <p class="text-xs text-gray-500 mt-1">智能排版海报生成引擎 (A4尺寸)</p>
@@ -101,11 +101,12 @@
                 <label class="block text-sm font-bold text-gray-700">视觉风格</label>
                 <div class="grid grid-cols-2 gap-3">
                     <button onclick="changeTheme('community')" id="theme-community" class="theme-btn w-full py-3 text-sm font-medium border-2 border-black bg-black text-white rounded-lg transition-colors">社区通知 (绿)</button>
+                    <button onclick="changeTheme('bwcomic')" id="theme-bwcomic" class="theme-btn w-full py-3 text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-black rounded-lg transition-colors">黑白漫改 (新)</button>
                     <button onclick="changeTheme('medical')" id="theme-medical" class="theme-btn w-full py-3 text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-black rounded-lg transition-colors">简约医疗 (蓝)</button>
                     <button onclick="changeTheme('minimal')" id="theme-minimal" class="theme-btn w-full py-3 text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-black rounded-lg transition-colors">极简留白</button>
                     <button onclick="changeTheme('magazine')" id="theme-magazine" class="theme-btn w-full py-3 text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-black rounded-lg transition-colors">高级杂志</button>
                     <button onclick="changeTheme('dark')" id="theme-dark" class="theme-btn w-full py-3 text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-black rounded-lg transition-colors">暗黑优雅</button>
-                    <button onclick="changeTheme('newspaper')" id="theme-newspaper" class="theme-btn w-full py-3 text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-black rounded-lg transition-colors">复古报纸</button>
+                    <button onclick="changeTheme('newspaper')" id="theme-newspaper" class="theme-btn col-span-2 py-3 text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-black rounded-lg transition-colors">复古报纸</button>
                 </div>
             </div>
         </div>
@@ -180,6 +181,35 @@
             renderPoster();
         }
 
+        // 辅助函数：将输入拆分为块
+        function parseTextToBlocks(text) {
+            const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(b => b !== '');
+            let title = "海报通知";
+            let footerText = "欢迎参加";
+            let sections = [];
+
+            if (blocks.length >= 3) {
+                title = blocks[0];
+                footerText = blocks[blocks.length - 1];
+                for (let i = 1; i < blocks.length - 1; i++) {
+                    const blockLines = blocks[i].split('\n').map(l => l.trim()).filter(l=>l!=='');
+                    if (blockLines.length >= 2) {
+                        sections.push({ title: blockLines[0], content: blockLines.slice(1).join('<br>') });
+                    } else {
+                        sections.push({ title: blockLines[0], content: '' });
+                    }
+                }
+            } else {
+                const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+                title = lines[0] || '通知';
+                footerText = lines[lines.length - 1] || '';
+                for (let i = 1; i < lines.length - 1; i += 2) {
+                    sections.push({ title: lines[i], content: lines[i+1] || '' });
+                }
+            }
+            return { title, footerText, sections };
+        }
+
         // 核心渲染引擎
         function renderPoster() {
             const text = document.getElementById('text-input').value;
@@ -191,67 +221,153 @@
             }
 
             let htmlContent = '';
+            const { title, footerText, sections } = parseTextToBlocks(text);
 
-            // ========== 新增：简约医疗风格 (高度还原参考图2) ==========
-            if (currentTheme === 'medical') {
-                const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(b => b !== '');
-                
-                let title = "集中体检通知";
-                let footerText = "欢迎参加";
-                let sections = [];
+            // ========== 新增：黑白漫改风格 (高度还原图3、纯线条与点阵) ==========
+            if (currentTheme === 'bwcomic') {
+                const bwIcons = [
+                    '<svg class="w-10 h-10 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>', // 日历
+                    '<svg class="w-10 h-10 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>', // 地图
+                    '<svg class="w-10 h-10 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>', // 人像
+                    '<svg class="w-10 h-10 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>' // 对钩事项
+                ];
 
-                if (blocks.length >= 3) {
-                    title = blocks[0];
-                    footerText = blocks[blocks.length - 1];
-                    for (let i = 1; i < blocks.length - 1; i++) {
-                        const blockLines = blocks[i].split('\n').map(l => l.trim()).filter(l=>l!=='');
-                        if (blockLines.length >= 2) {
-                            sections.push({ title: blockLines[0], content: blockLines.slice(1).join('<br>') });
-                        } else {
-                            sections.push({ title: blockLines[0], content: '' });
-                        }
-                    }
-                } else {
-                    const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
-                    title = lines[0] || '通知';
-                    footerText = lines[lines.length - 1] || '';
-                    for (let i = 1; i < lines.length - 1; i += 2) {
-                        sections.push({ title: lines[i], content: lines[i+1] || '' });
-                    }
-                }
-
-                let sectionsHtml = sections.map((sec) => {
+                let sectionsHtml = sections.map((sec, idx) => {
+                    const icon = bwIcons[idx % bwIcons.length];
                     let lines = sec.content.split('<br>');
                     let parsedLines = lines.map(line => {
                         let trimmed = line.trim();
-                        // 匹配带圆点（转换成勾选样式）
                         if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
-                            return `<div class="flex items-start gap-4 mb-5 ml-12">
-                                        <svg class="w-8 h-8 text-[#1a3b5c] shrink-0 mt-[6px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
-                                        <span class="text-[34px] text-[#2c3e50] leading-[1.6]">${trimmed.replace(/^[•-]/, '').trim()}</span>
+                            return `<div class="flex items-start gap-4 mb-3 ml-2">
+                                        <div class="w-4 h-4 rounded-full bg-black shrink-0 mt-[14px]"></div>
+                                        <span class="text-[34px] font-bold text-black leading-[1.5]">${trimmed.replace(/^[•-]/, '').trim()}</span>
                                     </div>`;
-                        // 匹配数字标号（转换成数字图标块样式）
                         } else if (/^\d+\./.test(trimmed)) {
-                            let num = trimmed.match(/^\d+/)[0];
-                            return `<div class="flex items-start gap-5 mb-5 ml-12">
-                                        <div class="w-10 h-10 bg-[#eef2f5] text-[#1a3b5c] rounded flex items-center justify-center font-bold shrink-0 mt-2 text-xl">${num}</div>
-                                        <span class="text-[34px] text-[#2c3e50] leading-[1.6]">${trimmed.replace(/^\d+\./, '').trim()}</span>
+                            let num = trimmed.match(/^\d+/)[0].replace('.', '');
+                            return `<div class="flex items-start gap-4 mb-3 ml-2">
+                                        <div class="w-10 h-10 border-4 border-black rounded-full bg-white flex items-center justify-center font-black text-2xl shrink-0 mt-2 shadow-[2px_2px_0_#000]">${num}</div>
+                                        <span class="text-[34px] font-bold text-black leading-[1.5]">${trimmed.replace(/^\d+\./, '').trim()}</span>
                                     </div>`;
-                        // 普通文本（采用蓝底居中样式）
                         } else {
-                            return `<div class="text-[36px] font-bold text-[#1a3b5c] leading-[1.6] text-center mb-3">${trimmed}</div>`;
+                            return `<div class="text-[34px] font-bold text-black leading-[1.5] mb-2">${trimmed}</div>`;
                         }
                     }).join('');
 
                     return `
-                        <div class="mb-14 w-full">
-                            <!-- 带有横线的分类标题 -->
-                            <div class="flex items-center justify-center gap-6 mb-10 w-[80%] mx-auto">
+                        <div class="mb-10 w-full relative z-10 px-8">
+                            <!-- 小标题区块 -->
+                            <div class="flex items-center gap-4 mb-6 relative">
+                                <!-- 图标 -->
+                                <div class="bg-white border-4 border-black p-3 rounded-xl shadow-[6px_6px_0_#000] z-20">
+                                    ${icon}
+                                </div>
+                                <!-- 文字框 -->
+                                <div class="bg-white border-4 border-black px-6 py-2 rounded-xl shadow-[6px_6px_0_#000] z-20">
+                                    <h2 class="text-[36px] font-black tracking-widest">${sec.title}</h2>
+                                </div>
+                                <!-- 连线装饰 -->
+                                <div class="h-1.5 bg-black flex-1 ml-4 mt-2 z-10"></div>
+                            </div>
+                            <!-- 正文 -->
+                            <div class="pl-[16px]">
+                                ${parsedLines}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                htmlContent = `
+                    <div class="w-full h-full bg-white p-[50px] flex flex-col relative box-border overflow-hidden z-0">
+                        <!-- 最外层粗边框 -->
+                        <div class="absolute inset-[40px] border-[12px] border-black rounded-xl z-20 pointer-events-none"></div>
+                        
+                        <!-- 背景网格/点阵装饰 (Halftone) -->
+                        <div class="absolute inset-0 z-0 opacity-20" style="background-image: radial-gradient(#000 4px, transparent 4px); background-size: 28px 28px;"></div>
+                        
+                        <!-- 底部白底遮罩，保证文字清晰度 -->
+                        <div class="absolute inset-[52px] bg-white z-10 rounded-lg"></div>
+
+                        <!-- 装饰：边角黑白叶片/几何体 -->
+                        <svg class="absolute top-[30px] left-[30px] w-[200px] h-[200px] z-30 pointer-events-none" viewBox="0 0 100 100">
+                            <path d="M10 50 Q 50 10 90 50 Q 50 90 10 50" fill="white" stroke="black" stroke-width="4"/>
+                            <path d="M20 50 Q 50 30 80 50 Q 50 70 20 50" fill="white" stroke="black" stroke-width="3"/>
+                        </svg>
+                        <svg class="absolute bottom-[30px] right-[30px] w-[200px] h-[200px] z-30 pointer-events-none transform rotate-180" viewBox="0 0 100 100">
+                            <path d="M10 50 Q 50 10 90 50 Q 50 90 10 50" fill="white" stroke="black" stroke-width="4"/>
+                            <path d="M20 50 Q 50 30 80 50 Q 50 70 20 50" fill="white" stroke="black" stroke-width="3"/>
+                        </svg>
+
+                        <!-- 主内容容器 -->
+                        <div class="relative z-20 flex flex-col h-full pt-[60px] pb-[40px] px-[40px]">
+                            
+                            <!-- 顶部巨大的横幅徽章标题 -->
+                            <div class="relative inline-block mb-16 mt-4 mx-auto">
+                                <!-- 横幅飘带 -->
+                                <div class="absolute -left-12 top-6 w-24 h-16 bg-white border-[6px] border-black -z-10 transform -skew-x-12 shadow-[6px_6px_0_#000]"></div>
+                                <div class="absolute -right-12 top-6 w-24 h-16 bg-white border-[6px] border-black -z-10 transform skew-x-12 shadow-[6px_6px_0_#000]"></div>
+                                
+                                <!-- 标题框 -->
+                                <div class="bg-white border-[8px] border-black px-12 py-5 shadow-[12px_12px_0_#000] relative z-10 transform -rotate-1">
+                                    <h1 class="text-[80px] font-black text-black tracking-widest text-center" style="-webkit-text-stroke: 1px black;">${title}</h1>
+                                </div>
+                            </div>
+
+                            <!-- 中间排版区 -->
+                            <div class="flex-1 w-full flex flex-col justify-start">
+                                ${sectionsHtml}
+                            </div>
+
+                            <!-- 底部电话和尾注 -->
+                            <div class="mt-auto px-8 w-full">
+                                <div class="border-[6px] border-black border-dashed bg-white shadow-[10px_10px_0_#000] rounded-2xl py-6 px-10 flex flex-col items-center gap-4">
+                                    <div class="flex items-center gap-6">
+                                        <svg class="w-14 h-14 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                        <span class="text-[46px] font-black tracking-wider text-black">${footerText}</span>
+                                    </div>
+                                    <div class="h-1 w-[80%] bg-black my-1"></div>
+                                    <div class="text-[28px] font-bold text-black flex items-center gap-2">
+                                        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                        请注意查看具体安排，踊跃参加！
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                `;
+            }
+
+            // ========== 优化：简约医疗风格 (蓝) - 使间距更紧凑 ==========
+            else if (currentTheme === 'medical') {
+                let sectionsHtml = sections.map((sec) => {
+                    let lines = sec.content.split('<br>');
+                    let parsedLines = lines.map(line => {
+                        let trimmed = line.trim();
+                        if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
+                            // mb-5 改为 mb-2，leading-[1.6] 改为 leading-[1.4]
+                            return `<div class="flex items-start gap-4 mb-2 ml-12">
+                                        <svg class="w-8 h-8 text-[#1a3b5c] shrink-0 mt-[4px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+                                        <span class="text-[34px] text-[#2c3e50] leading-[1.4]">${trimmed.replace(/^[•-]/, '').trim()}</span>
+                                    </div>`;
+                        } else if (/^\d+\./.test(trimmed)) {
+                            let num = trimmed.match(/^\d+/)[0];
+                            return `<div class="flex items-start gap-5 mb-2 ml-12">
+                                        <div class="w-9 h-9 bg-[#eef2f5] text-[#1a3b5c] rounded flex items-center justify-center font-bold shrink-0 mt-[2px] text-lg">${num}</div>
+                                        <span class="text-[34px] text-[#2c3e50] leading-[1.4]">${trimmed.replace(/^\d+\./, '').trim()}</span>
+                                    </div>`;
+                        } else {
+                            return `<div class="text-[36px] font-bold text-[#1a3b5c] leading-[1.4] text-center mb-2">${trimmed}</div>`;
+                        }
+                    }).join('');
+
+                    // mb-14 改为 mb-8
+                    return `
+                        <div class="mb-8 w-full">
+                            <div class="flex items-center justify-center gap-6 mb-6 w-[80%] mx-auto">
                                 <div class="h-[2px] bg-[#d1d5db] flex-1"></div>
                                 <h2 class="text-[38px] font-bold text-[#1a3b5c] tracking-widest">${sec.title}</h2>
                                 <div class="h-[2px] bg-[#d1d5db] flex-1"></div>
                             </div>
-                            <!-- 小节正文区块 -->
                             <div class="w-full">
                                 ${parsedLines}
                             </div>
@@ -261,11 +377,11 @@
 
                 htmlContent = `
                 <div class="w-full h-full bg-[#eef2f5] text-[#1a3b5c] flex items-center justify-center box-border p-[80px] relative z-0">
-                    <!-- 纯白卡片内容区，增加极淡颗粒状肌理。调整 pt-[50px] pb-[100px] 使整体内容上移 -->
-                    <div class="w-full h-full bg-white shadow-[0_8px_30px_rgb(0,0,0,0.06)] flex flex-col pt-[50px] pb-[100px] px-[90px] relative z-10" style="background-image: url('data:image/svg+xml,%3Csvg width=\\'20\\' height=\\'20\\' viewBox=\\'0 0 20 20\\' xmlns=\\'http://www.w3.org/2000/svg\\'%3E%3Cg fill=\\'%23f9f9fa\\' fill-opacity=\\'0.4\\' fill-rule=\\'evenodd\\'%3E%3Ccircle cx=\\'3\\' cy=\\'3\\' r=\\'3\\'/%3E%3C/g%3E%3C/svg%3E');">
+                    <!-- pt-[50px] pb-[100px] 稍微缩紧为 pt-[40px] pb-[70px] -->
+                    <div class="w-full h-full bg-white shadow-[0_8px_30px_rgb(0,0,0,0.06)] flex flex-col pt-[40px] pb-[70px] px-[90px] relative z-10" style="background-image: url('data:image/svg+xml,%3Csvg width=\\'20\\' height=\\'20\\' viewBox=\\'0 0 20 20\\' xmlns=\\'http://www.w3.org/2000/svg\\'%3E%3Cg fill=\\'%23f9f9fa\\' fill-opacity=\\'0.4\\' fill-rule=\\'evenodd\\'%3E%3Ccircle cx=\\'3\\' cy=\\'3\\' r=\\'3\\'/%3E%3C/g%3E%3C/svg%3E');">
                         
                         <!-- 顶部组合医疗图标和线条 -->
-                        <div class="flex justify-center items-center gap-4 mb-10">
+                        <div class="flex justify-center items-center gap-4 mb-6">
                                 <div class="flex items-center">
                                     <div class="w-[100px] h-[2px] bg-[#d1d5db]"></div>
                                     <svg class="w-16 h-16 text-[#6c7a89] mx-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z"/><polyline points="10 10 12 12 15 8"/></svg>
@@ -274,23 +390,23 @@
                                 </div>
                             </div>
 
-                            <!-- 海报主标题 -->
-                            <h1 class="text-[85px] font-black text-[#1a3b5c] tracking-wider text-center mb-6 leading-[1.2]">${title}</h1>
+                            <!-- 海报主标题，mb-6 改为 mb-4 -->
+                            <h1 class="text-[85px] font-black text-[#1a3b5c] tracking-wider text-center mb-4 leading-[1.2]">${title}</h1>
 
                             <!-- 内容排版区 -->
-                            <div class="flex-1 mt-8 w-full flex flex-col justify-start">
+                            <div class="flex-1 mt-6 w-full flex flex-col justify-start">
                                 ${sectionsHtml}
                             </div>
 
                             <!-- 底部电话联络区与新增标语 -->
-                            <div class="mt-auto pt-8 flex flex-col justify-center items-center gap-5 w-full border-t border-[#d1d5db]">
+                            <div class="mt-auto pt-6 flex flex-col justify-center items-center gap-4 w-full border-t border-[#d1d5db]">
                                 <!-- 联络电话 -->
                                 <div class="flex items-center gap-4">
                                     <svg class="w-10 h-10 text-[#1a3b5c]" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
                                     <span class="text-[38px] font-bold text-[#1a3b5c] tracking-widest">${footerText}</span>
                                 </div>
                                 <!-- 底部标语补充 -->
-                                <div class="text-center text-[#6c7a89] text-[28px] font-bold tracking-[0.1em] flex items-center justify-center gap-3">
+                                <div class="text-center text-[#6c7a89] text-[26px] font-bold tracking-[0.1em] flex items-center justify-center gap-3">
                                     <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                     请注意查看具体安排，踊跃参加！
                                 </div>
@@ -299,53 +415,24 @@
                     </div>
                 `;
             }
+
             // ========== 现有的：社区体检通知风格 (高度还原参考图1) ==========
             else if (currentTheme === 'community') {
-                const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(b => b !== '');
-                
-                let title = "社区通知";
-                let footerText = "欢迎参加";
-                let sections = [];
-
-                if (blocks.length >= 3) {
-                    title = blocks[0];
-                    footerText = blocks[blocks.length - 1];
-                    // 中间的方块解析为卡片
-                    for (let i = 1; i < blocks.length - 1; i++) {
-                        const blockLines = blocks[i].split('\n').map(l => l.trim()).filter(l=>l!=='');
-                        if (blockLines.length >= 2) {
-                            sections.push({ title: blockLines[0], content: blockLines.slice(1).join('<br>') });
-                        } else {
-                            sections.push({ title: blockLines[0], content: '' });
-                        }
-                    }
-                } else {
-                    // 如果用户没有用空行分割，尝试按行配对
-                    const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
-                    title = lines[0] || '通知';
-                    footerText = lines[lines.length - 1] || '';
-                    for (let i = 1; i < lines.length - 1; i += 2) {
-                        sections.push({ title: lines[i], content: lines[i+1] || '' });
-                    }
-                }
-
                 const icons = [
-                    '<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', // 时间
-                    '<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>', // 地点
-                    '<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>', // 对象
-                    '<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>'  // 准备事项
+                    '<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+                    '<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+                    '<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+                    '<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>'
                 ];
 
                 let sectionsHtml = sections.map((sec, idx) => {
                     const icon = icons[idx % icons.length];
                     return `
                         <div class="mb-14 relative z-10 w-[92%] mx-auto">
-                            <!-- 小标题卡片 (左侧悬浮) -->
                             <div class="bg-[#489976] text-white px-8 py-3 rounded-r-[30px] rounded-tl-[16px] inline-flex items-center gap-3 absolute -top-7 left-6 z-20 shadow-[2px_4px_10px_rgba(46,125,50,0.3)]">
                                 ${icon}
                                 <span class="text-[38px] font-bold tracking-widest">${sec.title}</span>
                             </div>
-                            <!-- 正文边框盒子 -->
                             <div class="bg-white border-[4px] border-[#489976] rounded-[24px] p-10 pt-16 shadow-[0px_6px_0px_#b9e3d3]">
                                 <p class="text-[36px] font-bold text-[#1a4031] leading-[1.8]">${sec.content}</p>
                             </div>
@@ -354,12 +441,9 @@
                 }).join('');
 
                 htmlContent = `
-                    <!-- 调整 pt-[40px] pb-[80px] 使整体内容上移 -->
                     <div class="w-full h-full bg-[#e8f7f1] text-[#1a3b2e] pt-[40px] pb-[80px] px-[40px] flex flex-col relative box-border overflow-hidden z-0">
-                        <!-- 背景：点阵纹理 -->
                         <div class="absolute inset-0 z-0" style="background-image: radial-gradient(#489976 2px, transparent 2px); background-size: 36px 36px; opacity: 0.15;"></div>
                         
-                        <!-- 背景装饰：右侧十字形 -->
                         <div class="absolute top-[20%] right-[40px] text-[#b9e3d3] z-0">
                             <svg width="60" height="60" viewBox="0 0 100 100" fill="currentColor"><rect x="40" y="0" width="20" height="100" rx="10"/><rect x="0" y="40" width="100" height="20" rx="10"/></svg>
                         </div>
@@ -367,44 +451,33 @@
                             <svg width="40" height="40" viewBox="0 0 100 100" fill="currentColor"><rect x="40" y="0" width="20" height="100" rx="10"/><rect x="0" y="40" width="100" height="20" rx="10"/></svg>
                         </div>
 
-                        <!-- 顶部主标题容器 (复杂多层边框) -->
                         <div class="relative w-[95%] mx-auto mb-16 mt-4 z-10">
-                            <!-- 底层阴影绿框 -->
                             <div class="absolute inset-0 bg-[#b9e3d3] rounded-2xl transform translate-x-4 translate-y-4 border-[3px] border-[#489976]"></div>
-                            <!-- 顶层白底边框 -->
                             <div class="relative bg-white border-[6px] border-[#489976] rounded-2xl py-12 px-6 flex items-center justify-center">
-                                <!-- 顶部左右两个斜切角装饰 (用SVG模拟) -->
                                 <div class="absolute -top-[3px] -left-[3px] w-12 h-12 border-t-[8px] border-l-[8px] border-[#489976] bg-[#e8f7f1]"></div>
                                 <div class="absolute -top-[3px] -right-[3px] w-12 h-12 border-t-[8px] border-r-[8px] border-[#489976] bg-[#e8f7f1]"></div>
                                 <div class="absolute -bottom-[3px] -left-[3px] w-12 h-12 border-b-[8px] border-l-[8px] border-[#489976] bg-[#e8f7f1]"></div>
                                 <div class="absolute -bottom-[3px] -right-[3px] w-12 h-12 border-b-[8px] border-r-[8px] border-[#489976] bg-[#e8f7f1]"></div>
-
                                 <h1 class="text-[85px] font-black text-[#2e7d54] tracking-widest text-center">${title}</h1>
                             </div>
                         </div>
 
-                        <!-- 中间卡片渲染区 -->
                         <div class="flex-1 z-10 flex flex-col justify-start">
                             ${sectionsHtml}
                         </div>
 
-                        <!-- 底部：电话及尾部区域 -->
                         <div class="relative z-10 mt-auto pb-4">
-                            <!-- 电话大按钮条 -->
                             <div class="bg-[#489976] text-white rounded-full py-6 px-12 flex items-center justify-center gap-6 w-[90%] mx-auto shadow-[0_8px_20px_rgba(46,125,50,0.3)]">
                                 <svg class="w-14 h-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                                 <span class="text-[48px] font-bold tracking-wider">${footerText}</span>
                                 <div class="absolute right-12 text-[#ff6b6b] opacity-80"><svg class="w-16 h-16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
                             </div>
-                            
-                            <!-- 底部标语 -->
                             <div class="text-center text-[#2e7d54] mt-8 text-[30px] font-bold tracking-[0.1em] flex items-center justify-center gap-3">
                                 <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 请注意查看具体安排，踊跃参加！
                             </div>
                         </div>
 
-                        <!-- 底部植物叶片装饰 (左下 / 右下) -->
                         <div class="absolute -bottom-8 -left-12 w-[350px] h-[350px] z-0 opacity-80" style="transform: rotate(15deg);">
                             <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
                                 <path fill="#a3d9c2" d="M100 200C100 200 20 120 20 50C20 20 50 0 100 0C150 0 180 20 180 50C180 120 100 200 100 200Z" transform="rotate(45 100 100) translate(-40, 40)" />
@@ -430,7 +503,6 @@
                 if (currentTheme === 'minimal') {
                 const phtml = paragraphs.map(p => `<p class="mb-8 text-justify">${p}</p>`).join('');
                 htmlContent = `
-                    <!-- 调整 pt-[80px] pb-[160px] 使整体内容上移 -->
                     <div class="w-full h-full bg-white text-gray-900 pt-[80px] pb-[160px] px-[120px] flex flex-col relative box-border overflow-hidden z-0">
                         <svg class="absolute -bottom-[200px] -right-[200px] w-[1200px] h-[1200px] text-gray-100 -z-10" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="50" cy="50" r="48" /></svg>
                         <div class="absolute top-0 right-[250px] w-[1px] h-[800px] bg-gray-200 -z-10"></div>
@@ -453,7 +525,6 @@
             else if (currentTheme === 'magazine') {
                 const phtml = paragraphs.map(p => `<p class="mb-10 text-justify">${p}</p>`).join('');
                 htmlContent = `
-                    <!-- 调整 pt-[70px] pb-[130px] 使整体内容上移 -->
                     <div class="w-full h-full bg-[#f4f1ea] text-[#1a1a1a] pt-[70px] pb-[130px] px-[100px] flex flex-col relative box-border overflow-hidden z-0">
                         <div class="absolute -top-32 -right-12 text-[#e63946] opacity-10 font-serif text-[900px] leading-none pointer-events-none -z-10">"</div>
                         <svg class="absolute top-[40%] -left-[150px] w-[600px] h-[600px] text-[#2a9d8f] opacity-[0.07] -z-10 rotate-12" viewBox="0 0 100 100" fill="currentColor"><polygon points="50,0 100,25 100,75 50,100 0,75 0,25" /></svg>
@@ -486,7 +557,6 @@
                 htmlContent = `
                     <div class="w-full h-full bg-[#111111] text-[#f8f8f8] p-[60px] box-border relative overflow-hidden z-0">
                         <svg class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] text-[#d4af37] opacity-[0.04] -z-10" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="0.2"><circle cx="50" cy="50" r="40" /><circle cx="50" cy="50" r="30" /><path d="M50 0 L50 100 M0 50 L100 50 M15 15 L85 85 M15 85 L85 15" /></svg>
-                        <!-- 调整内层 pt-[50px] pb-[110px] 使整体内容上移 -->
                         <div class="w-full h-full border-[2px] border-[#d4af37]/40 pt-[50px] pb-[110px] px-[80px] flex flex-col items-center relative box-border">
                             <div class="absolute top-6 left-6 w-16 h-16 border-t-[4px] border-l-[4px] border-[#d4af37]"></div><div class="absolute top-6 right-6 w-16 h-16 border-t-[4px] border-r-[4px] border-[#d4af37]"></div><div class="absolute bottom-6 left-6 w-16 h-16 border-b-[4px] border-l-[4px] border-[#d4af37]"></div><div class="absolute bottom-6 right-6 w-16 h-16 border-b-[4px] border-r-[4px] border-[#d4af37]"></div>
                                 <div class="text-[#d4af37] text-[28px] tracking-[0.6em] mb-24 uppercase font-serif font-bold flex items-center gap-6"><span class="w-16 h-[2px] bg-[#d4af37]/50"></span>${subtitle}<span class="w-16 h-[2px] bg-[#d4af37]/50"></span></div>
@@ -501,7 +571,6 @@
             else if (currentTheme === 'newspaper') {
                 const phtml = paragraphs.map(p => `<p class="mb-8 text-justify">${p}</p>`).join('');
                 htmlContent = `
-                    <!-- 调整 pt-[50px] pb-[110px] 使整体内容上移 -->
                     <div class="w-full h-full bg-[#fdfbf7] text-black pt-[50px] pb-[110px] px-[80px] flex flex-col box-border relative overflow-hidden z-0">
                         <svg class="absolute top-[280px] right-[100px] w-[220px] h-[220px] text-red-800/20 -rotate-12 pointer-events-none -z-10" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2"><circle cx="50" cy="50" r="45" /><circle cx="50" cy="50" r="40" stroke-dasharray="2 2" /><text x="50" y="55" font-size="16" font-family="serif" font-weight="bold" text-anchor="middle" fill="currentColor" stroke="none">VERIFIED</text><path d="M20 50 L80 50" stroke-width="1" opacity="0.5"/></svg>
                             <div class="text-center border-t-[8px] border-b-[2px] border-black py-6 mb-12 relative">
@@ -540,9 +609,7 @@
                 // 额外提供一点缓冲时间让页面重绘稳定
                 await new Promise(r => setTimeout(r, 500));
 
-                // 【核心修复点】
-                // 暂时移除父级的缩放。由于 html2canvas 在遇到含有 CSS transform scale 的父节点时，
-                // 计算节点几何坐标会发生致命错误，从而导致文字被极度压缩在左上角，且背景截断为黑色。
+                // 暂时移除父级的缩放
                 const originalTransform = wrapper.style.transform;
                 wrapper.style.transform = 'none';
 
@@ -553,11 +620,11 @@
                 const canvas = await html2canvas(posterNode, {
                     scale: 2, 
                     useCORS: true,
-                    backgroundColor: '#ffffff', // 明确设置白色背景，避免透明处变成黑边
+                    backgroundColor: '#ffffff', // 明确设置白色背景
                     logging: false,
                     width: 1240,
                     height: 1754,
-                    scrollY: 0, // 消除任何可能的滚动条偏移影响
+                    scrollY: 0,
                     scrollX: 0
                 });
 
