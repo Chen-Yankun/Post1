@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 高级海报生成器</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入中文字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700;900&family=Noto+Serif+SC:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <!-- 引入 html2canvas 用于导出图片 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans SC"', 'sans-serif'],
+                        serif: ['"Noto Serif SC"', 'serif'],
+                    },
+                    colors: {
+                        'brand-dark': '#1a1a1a',
+                        'brand-gold': '#d4af37',
+                        'paper': '#f4f1ea'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; }
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* A4 纸张绝对尺寸 (150dpi): 1240 x 1754 px */
+        .a4-paper {
+            width: 1240px;
+            height: 1754px;
+            background-color: white;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 预览区域的缩放包裹器 */
+        #scale-wrapper {
+            transform-origin: top center;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* 多列文本平衡 */
+        .column-balance {
+            column-fill: balance;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex overflow-hidden">
+
+    <!-- 左侧控制面板 -->
+    <div class="w-96 bg-white shadow-xl flex flex-col z-10 h-full">
+        <div class="p-6 border-b">
+            <h1 class="text-2xl font-black text-gray-800 tracking-tight">Postermagic.</h1>
+            <p class="text-xs text-gray-500 mt-1">智能排版海报生成引擎 (A4尺寸)</p>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            <!-- 文本输入区 -->
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">海报文案 <span class="text-xs font-normal text-gray-400">(双回车分段)</span></label>
+                <textarea id="text-input" rows="12" class="w-full p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none resize-none text-sm leading-relaxed" placeholder="在此粘贴您的长文本...">方冲社区集中体检通知
+
+时间安排
+3月9日-3月13日，每天7:30
+
+体检地点
+方冲小区中心花园
+
+体检对象
+• 65岁及以上老年人；
+• 常住本辖区半年以上患有高血压，糖尿病，慢阻肺主动建立健康档案并接受管理的居民
+
+准备事项
+1. 携带本人身份证或户口簿；
+2. 空腹(高血压居民晨起口服降压药)；
+3. 行动不便老人需家属陪同；
+4. 条件允许可在家取小便，用干净瓶子装带至现场倒入标本瓶
+
+咨询电话：18160092190（刘医生）</textarea>
+            </div>
+
+            <!-- 风格选择区 -->
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">视觉风格</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="changeTheme('community')" id="theme-community" class="theme-btn w-full py-3 text-sm font-medium border-2 border-black bg-black text-white rounded-lg transition-colors">社区通知 (绿)</button>
+                    <button onclick="changeTheme('medical')" id="theme-medical" class="theme-btn w-full py-3 text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-black rounded-lg transition-colors">简约医疗 (蓝)</button>
+                    <button onclick="changeTheme('minimal')" id="theme-minimal" class="theme-btn w-full py-3 text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-black rounded-lg transition-colors">极简留白</button>
+                    <button onclick="changeTheme('magazine')" id="theme-magazine" class="theme-btn w-full py-3 text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-black rounded-lg transition-colors">高级杂志</button>
+                    <button onclick="changeTheme('dark')" id="theme-dark" class="theme-btn w-full py-3 text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-black rounded-lg transition-colors">暗黑优雅</button>
+                    <button onclick="changeTheme('newspaper')" id="theme-newspaper" class="theme-btn w-full py-3 text-sm font-medium border-2 border-gray-200 text-gray-600 hover:border-black rounded-lg transition-colors">复古报纸</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6 border-t bg-gray-50 space-y-3">
+            <button onclick="renderPoster()" class="w-full py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-lg transition-colors flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><line x1="16" y1="5" x2="22" y2="5"/><line x1="19" y1="2" x2="19" y2="8"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                刷新预览
+            </button>
+            <button onclick="downloadPNG()" id="download-btn" class="w-full py-4 bg-black hover:bg-gray-800 text-white font-bold rounded-lg transition-colors shadow-lg flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                下载 A4 高清 PNG
+            </button>
+        </div>
+    </div>
+
+    <!-- 右侧工作区 (画布预览) -->
+    <div id="workspace" class="flex-1 relative overflow-auto bg-gray-200 flex justify-center py-12">
+        <div id="scale-wrapper">
+            <!-- 真实的 A4 渲染节点 -->
+            <div id="poster-node" class="a4-paper">
+                <!-- 动态内容将注入到这里 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 全局 Loading 遮罩 -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 hidden flex-col items-center justify-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-black mb-4"></div>
+        <p class="text-lg font-bold text-gray-800 tracking-widest">正在生成超清图像...</p>
+    </div>
+
+    <script>
+        // 默认采用新增加的社区通知风格
+        let currentTheme = 'community';
+
+        // 初始化
+        window.onload = () => {
+            renderPoster();
+            handleResize();
+            window.addEventListener('resize', handleResize);
+        };
+
+        // 处理界面缩放，让1240x1754的A4纸适应屏幕高度
+        function handleResize() {
+            const workspace = document.getElementById('workspace');
+            const wrapper = document.getElementById('scale-wrapper');
+            // 计算需要的缩放比例 (留出上下 padding)
+            const availableHeight = workspace.clientHeight - 96; 
+            const scale = availableHeight / 1754;
+            
+            // 如果屏幕太宽或太窄，进行安全限制
+            const finalScale = Math.min(Math.max(scale, 0.2), 1.5);
+            wrapper.style.transform = `scale(${finalScale})`;
+        }
+
+        // 切换风格主题
+        function changeTheme(themeName) {
+            currentTheme = themeName;
+            
+            // 更新按钮 UI
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.remove('bg-black', 'text-white', 'border-black');
+                btn.classList.add('border-gray-200', 'text-gray-600');
+            });
+            const activeBtn = document.getElementById(`theme-${themeName}`);
+            activeBtn.classList.remove('border-gray-200', 'text-gray-600');
+            activeBtn.classList.add('bg-black', 'text-white', 'border-black');
+
+            // 重新渲染
+            renderPoster();
+        }
+
+        // 核心渲染引擎
+        function renderPoster() {
+            const text = document.getElementById('text-input').value;
+            const posterNode = document.getElementById('poster-node');
+            
+            if (text.trim() === '') {
+                posterNode.innerHTML = `<div class="w-full h-full flex items-center justify-center text-5xl text-gray-300 font-serif">请输入内容以生成海报</div>`;
+                return;
+            }
+
+            let htmlContent = '';
+
+            // ========== 新增：简约医疗风格 (高度还原参考图2) ==========
+            if (currentTheme === 'medical') {
+                const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(b => b !== '');
+                
+                let title = "集中体检通知";
+                let footerText = "欢迎参加";
+                let sections = [];
+
+                if (blocks.length >= 3) {
+                    title = blocks[0];
+                    footerText = blocks[blocks.length - 1];
+                    for (let i = 1; i < blocks.length - 1; i++) {
+                        const blockLines = blocks[i].split('\n').map(l => l.trim()).filter(l=>l!=='');
+                        if (blockLines.length >= 2) {
+                            sections.push({ title: blockLines[0], content: blockLines.slice(1).join('<br>') });
+                        } else {
+                            sections.push({ title: blockLines[0], content: '' });
+                        }
+                    }
+                } else {
+                    const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+                    title = lines[0] || '通知';
+                    footerText = lines[lines.length - 1] || '';
+                    for (let i = 1; i < lines.length - 1; i += 2) {
+                        sections.push({ title: lines[i], content: lines[i+1] || '' });
+                    }
+                }
+
+                let sectionsHtml = sections.map((sec) => {
+                    let lines = sec.content.split('<br>');
+                    let parsedLines = lines.map(line => {
+                        let trimmed = line.trim();
+                        // 匹配带圆点（转换成勾选样式）
+                        if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
+                            return `<div class="flex items-start gap-4 mb-5 ml-12">
+                                        <svg class="w-8 h-8 text-[#1a3b5c] shrink-0 mt-[6px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+                                        <span class="text-[34px] text-[#2c3e50] leading-[1.6]">${trimmed.replace(/^[•-]/, '').trim()}</span>
+                                    </div>`;
+                        // 匹配数字标号（转换成数字图标块样式）
+                        } else if (/^\d+\./.test(trimmed)) {
+                            let num = trimmed.match(/^\d+/)[0];
+                            return `<div class="flex items-start gap-5 mb-5 ml-12">
+                                        <div class="w-10 h-10 bg-[#eef2f5] text-[#1a3b5c] rounded flex items-center justify-center font-bold shrink-0 mt-2 text-xl">${num}</div>
+                                        <span class="text-[34px] text-[#2c3e50] leading-[1.6]">${trimmed.replace(/^\d+\./, '').trim()}</span>
+                                    </div>`;
+                        // 普通文本（采用蓝底居中样式）
+                        } else {
+                            return `<div class="text-[36px] font-bold text-[#1a3b5c] leading-[1.6] text-center mb-3">${trimmed}</div>`;
+                        }
+                    }).join('');
+
+                    return `
+                        <div class="mb-14 w-full">
+                            <!-- 带有横线的分类标题 -->
+                            <div class="flex items-center justify-center gap-6 mb-10 w-[80%] mx-auto">
+                                <div class="h-[2px] bg-[#d1d5db] flex-1"></div>
+                                <h2 class="text-[38px] font-bold text-[#1a3b5c] tracking-widest">${sec.title}</h2>
+                                <div class="h-[2px] bg-[#d1d5db] flex-1"></div>
+                            </div>
+                            <!-- 小节正文区块 -->
+                            <div class="w-full">
+                                ${parsedLines}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                htmlContent = `
+                    <div class="w-full h-full bg-[#eef2f5] text-[#1a3b5c] flex items-center justify-center box-border p-[80px] relative z-0">
+                        <!-- 纯白卡片内容区，增加极淡颗粒状肌理 -->
+                        <div class="w-full h-full bg-white shadow-[0_8px_30px_rgb(0,0,0,0.06)] flex flex-col pt-[80px] pb-[70px] px-[90px] relative z-10" style="background-image: url('data:image/svg+xml,%3Csvg width=\\'20\\' height=\\'20\\' viewBox=\\'0 0 20 20\\' xmlns=\\'http://www.w3.org/2000/svg\\'%3E%3Cg fill=\\'%23f9f9fa\\' fill-opacity=\\'0.4\\' fill-rule=\\'evenodd\\'%3E%3Ccircle cx=\\'3\\' cy=\\'3\\' r=\\'3\\'/%3E%3C/g%3E%3C/svg%3E');">
+                            
+                            <!-- 顶部组合医疗图标和线条 -->
+                            <div class="flex justify-center items-center gap-4 mb-10">
+                                <div class="flex items-center">
+                                    <div class="w-[100px] h-[2px] bg-[#d1d5db]"></div>
+                                    <svg class="w-16 h-16 text-[#6c7a89] mx-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z"/><polyline points="10 10 12 12 15 8"/></svg>
+                                    <svg class="w-14 h-14 text-[#489976]" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                                    <div class="w-[100px] h-[2px] bg-[#d1d5db] ml-4"></div>
+                                </div>
+                            </div>
+
+                            <!-- 海报主标题 -->
+                            <h1 class="text-[85px] font-black text-[#1a3b5c] tracking-wider text-center mb-6 leading-[1.2]">${title}</h1>
+
+                            <!-- 内容排版区 -->
+                            <div class="flex-1 mt-8 w-full flex flex-col justify-start">
+                                ${sectionsHtml}
+                            </div>
+
+                            <!-- 底部电话联络区 -->
+                            <div class="mt-auto pt-8 flex justify-center items-center gap-4 w-full border-t border-[#d1d5db]">
+                                <svg class="w-10 h-10 text-[#1a3b5c]" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                                <span class="text-[38px] font-bold text-[#1a3b5c] tracking-widest">${footerText}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            // ========== 现有的：社区体检通知风格 (高度还原参考图1) ==========
+            else if (currentTheme === 'community') {
+                const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(b => b !== '');
+                
+                let title = "社区通知";
+                let footerText = "欢迎参加";
+                let sections = [];
+
+                if (blocks.length >= 3) {
+                    title = blocks[0];
+                    footerText = blocks[blocks.length - 1];
+                    // 中间的方块解析为卡片
+                    for (let i = 1; i < blocks.length - 1; i++) {
+                        const blockLines = blocks[i].split('\n').map(l => l.trim()).filter(l=>l!=='');
+                        if (blockLines.length >= 2) {
+                            sections.push({ title: blockLines[0], content: blockLines.slice(1).join('<br>') });
+                        } else {
+                            sections.push({ title: blockLines[0], content: '' });
+                        }
+                    }
+                } else {
+                    // 如果用户没有用空行分割，尝试按行配对
+                    const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+                    title = lines[0] || '通知';
+                    footerText = lines[lines.length - 1] || '';
+                    for (let i = 1; i < lines.length - 1; i += 2) {
+                        sections.push({ title: lines[i], content: lines[i+1] || '' });
+                    }
+                }
+
+                const icons = [
+                    '<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', // 时间
+                    '<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>', // 地点
+                    '<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>', // 对象
+                    '<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>'  // 准备事项
+                ];
+
+                let sectionsHtml = sections.map((sec, idx) => {
+                    const icon = icons[idx % icons.length];
+                    return `
+                        <div class="mb-14 relative z-10 w-[92%] mx-auto">
+                            <!-- 小标题卡片 (左侧悬浮) -->
+                            <div class="bg-[#489976] text-white px-8 py-3 rounded-r-[30px] rounded-tl-[16px] inline-flex items-center gap-3 absolute -top-7 left-6 z-20 shadow-[2px_4px_10px_rgba(46,125,50,0.3)]">
+                                ${icon}
+                                <span class="text-[38px] font-bold tracking-widest">${sec.title}</span>
+                            </div>
+                            <!-- 正文边框盒子 -->
+                            <div class="bg-white border-[4px] border-[#489976] rounded-[24px] p-10 pt-16 shadow-[0px_6px_0px_#b9e3d3]">
+                                <p class="text-[36px] font-bold text-[#1a4031] leading-[1.8]">${sec.content}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                htmlContent = `
+                    <div class="w-full h-full bg-[#e8f7f1] text-[#1a3b2e] py-[60px] px-[40px] flex flex-col relative box-border overflow-hidden z-0">
+                        <!-- 背景：点阵纹理 -->
+                        <div class="absolute inset-0 z-0" style="background-image: radial-gradient(#489976 2px, transparent 2px); background-size: 36px 36px; opacity: 0.15;"></div>
+                        
+                        <!-- 背景装饰：右侧十字形 -->
+                        <div class="absolute top-[20%] right-[40px] text-[#b9e3d3] z-0">
+                            <svg width="60" height="60" viewBox="0 0 100 100" fill="currentColor"><rect x="40" y="0" width="20" height="100" rx="10"/><rect x="0" y="40" width="100" height="20" rx="10"/></svg>
+                        </div>
+                        <div class="absolute bottom-[35%] right-[80px] text-[#b9e3d3] z-0">
+                            <svg width="40" height="40" viewBox="0 0 100 100" fill="currentColor"><rect x="40" y="0" width="20" height="100" rx="10"/><rect x="0" y="40" width="100" height="20" rx="10"/></svg>
+                        </div>
+
+                        <!-- 顶部主标题容器 (复杂多层边框) -->
+                        <div class="relative w-[95%] mx-auto mb-20 mt-8 z-10">
+                            <!-- 底层阴影绿框 -->
+                            <div class="absolute inset-0 bg-[#b9e3d3] rounded-2xl transform translate-x-4 translate-y-4 border-[3px] border-[#489976]"></div>
+                            <!-- 顶层白底边框 -->
+                            <div class="relative bg-white border-[6px] border-[#489976] rounded-2xl py-12 px-6 flex items-center justify-center">
+                                <!-- 顶部左右两个斜切角装饰 (用SVG模拟) -->
+                                <div class="absolute -top-[3px] -left-[3px] w-12 h-12 border-t-[8px] border-l-[8px] border-[#489976] bg-[#e8f7f1]"></div>
+                                <div class="absolute -top-[3px] -right-[3px] w-12 h-12 border-t-[8px] border-r-[8px] border-[#489976] bg-[#e8f7f1]"></div>
+                                <div class="absolute -bottom-[3px] -left-[3px] w-12 h-12 border-b-[8px] border-l-[8px] border-[#489976] bg-[#e8f7f1]"></div>
+                                <div class="absolute -bottom-[3px] -right-[3px] w-12 h-12 border-b-[8px] border-r-[8px] border-[#489976] bg-[#e8f7f1]"></div>
+
+                                <h1 class="text-[85px] font-black text-[#2e7d54] tracking-widest text-center">${title}</h1>
+                            </div>
+                        </div>
+
+                        <!-- 中间卡片渲染区 -->
+                        <div class="flex-1 z-10 flex flex-col justify-start">
+                            ${sectionsHtml}
+                        </div>
+
+                        <!-- 底部：电话及尾部区域 -->
+                        <div class="relative z-10 mt-auto pb-4">
+                            <!-- 电话大按钮条 -->
+                            <div class="bg-[#489976] text-white rounded-full py-6 px-12 flex items-center justify-center gap-6 w-[90%] mx-auto shadow-[0_8px_20px_rgba(46,125,50,0.3)]">
+                                <svg class="w-14 h-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                <span class="text-[48px] font-bold tracking-wider">${footerText}</span>
+                                <div class="absolute right-12 text-[#ff6b6b] opacity-80"><svg class="w-16 h-16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+                            </div>
+                            
+                            <!-- 底部标语 -->
+                            <div class="text-center text-[#2e7d54] mt-8 text-[30px] font-bold tracking-[0.1em] flex items-center justify-center gap-3">
+                                <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                请注意查看具体安排，踊跃参加！
+                            </div>
+                        </div>
+
+                        <!-- 底部植物叶片装饰 (左下 / 右下) -->
+                        <div class="absolute -bottom-8 -left-12 w-[350px] h-[350px] z-0 opacity-80" style="transform: rotate(15deg);">
+                            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                                <path fill="#a3d9c2" d="M100 200C100 200 20 120 20 50C20 20 50 0 100 0C150 0 180 20 180 50C180 120 100 200 100 200Z" transform="rotate(45 100 100) translate(-40, 40)" />
+                                <path fill="#489976" d="M100 200C100 200 20 120 20 50C20 20 50 0 100 0C150 0 180 20 180 50C180 120 100 200 100 200Z" transform="rotate(15 100 100) translate(-10, 60)" />
+                            </svg>
+                        </div>
+                        <div class="absolute -bottom-12 -right-16 w-[400px] h-[400px] z-0 opacity-80" style="transform: rotate(-30deg) scaleX(-1);">
+                            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                                <path fill="#a3d9c2" d="M100 200C100 200 20 120 20 50C20 20 50 0 100 0C150 0 180 20 180 50C180 120 100 200 100 200Z" transform="rotate(45 100 100) translate(-40, 40)" />
+                                <path fill="#489976" d="M100 200C100 200 20 120 20 50C20 20 50 0 100 0C150 0 180 20 180 50C180 120 100 200 100 200Z" transform="rotate(15 100 100) translate(-10, 60)" />
+                            </svg>
+                        </div>
+                    </div>
+                `;
+            } 
+            // ========== 其他主题保持不变（基于旧的行提取逻辑兼容） ==========
+            else {
+                const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+                const title = lines[0];
+                const subtitle = lines.length > 1 ? lines[1] : new Date().toLocaleDateString('zh-CN').replace(/\//g, '.');
+                const paragraphs = lines.slice(2);
+                
+                if (currentTheme === 'minimal') {
+                    const phtml = paragraphs.map(p => `<p class="mb-8 text-justify">${p}</p>`).join('');
+                    htmlContent = `
+                        <div class="w-full h-full bg-white text-gray-900 p-[120px] flex flex-col relative box-border overflow-hidden z-0">
+                            <svg class="absolute -bottom-[200px] -right-[200px] w-[1200px] h-[1200px] text-gray-100 -z-10" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="50" cy="50" r="48" /></svg>
+                            <div class="absolute top-0 right-[250px] w-[1px] h-[800px] bg-gray-200 -z-10"></div>
+                            <div class="absolute top-[500px] left-[120px] w-[400px] h-[1px] bg-gray-200 -z-10"></div>
+
+                            <div class="w-[120px] h-[12px] bg-black mb-16"></div>
+                            <div class="flex-1 relative z-10">
+                                <h1 class="text-[130px] font-black font-serif leading-[0.95] tracking-tight mb-8 drop-shadow-sm">${title}</h1>
+                                <h2 class="text-[38px] font-light text-gray-400 font-sans tracking-[0.2em] uppercase mb-20">${subtitle}</h2>
+                                <div class="text-[32px] leading-[1.6] font-sans text-gray-700 columns-2 gap-[70px] column-balance mt-12">${phtml}</div>
+                            </div>
+
+                            <div class="mt-auto border-t-[3px] border-black pt-8 flex justify-between items-center text-black font-bold font-sans">
+                                <span class="text-2xl tracking-[0.3em]">MINIMALIST VISION</span>
+                                <span class="text-2xl flex items-center gap-4">01<span class="w-12 h-12 bg-black rounded-full flex items-center justify-center text-white text-sm">✦</span></span>
+                            </div>
+                        </div>
+                    `;
+                } 
+                else if (currentTheme === 'magazine') {
+                    const phtml = paragraphs.map(p => `<p class="mb-10 text-justify">${p}</p>`).join('');
+                    htmlContent = `
+                        <div class="w-full h-full bg-[#f4f1ea] text-[#1a1a1a] p-[100px] flex flex-col relative box-border overflow-hidden z-0">
+                            <div class="absolute -top-32 -right-12 text-[#e63946] opacity-10 font-serif text-[900px] leading-none pointer-events-none -z-10">"</div>
+                            <svg class="absolute top-[40%] -left-[150px] w-[600px] h-[600px] text-[#2a9d8f] opacity-[0.07] -z-10 rotate-12" viewBox="0 0 100 100" fill="currentColor"><polygon points="50,0 100,25 100,75 50,100 0,75 0,25" /></svg>
+
+                            <div class="relative z-10 flex flex-col h-full">
+                                <div class="flex justify-between items-start mb-16">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-[80px] h-[80px] bg-[#e63946] rounded-full"></div>
+                                        <div class="w-[80px] h-[80px] border-[6px] border-[#1a1a1a] rounded-full -ml-10 mix-blend-multiply"></div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-[32px] font-black font-sans tracking-[0.15em] border-b-4 border-black pb-2 mb-2">ISSUE / 01</div>
+                                        <div class="text-[26px] text-gray-600 font-bold">${subtitle}</div>
+                                    </div>
+                                </div>
+                                <h1 class="text-[145px] font-black font-sans leading-[0.9] tracking-tighter mb-16 w-[95%] text-transparent bg-clip-text bg-gradient-to-br from-black to-gray-800 drop-shadow-md">${title}</h1>
+                                <div class="flex items-center gap-8 mb-16">
+                                    <div class="w-48 h-6 bg-black"></div><div class="w-6 h-6 bg-[#e63946] rotate-45"></div><div class="flex-1 h-[2px] bg-gray-300"></div>
+                                </div>
+                                <div class="text-[34px] leading-[1.65] font-serif text-gray-800 columns-2 gap-[70px] flex-1">
+                                    <span class="float-left text-[110px] leading-[0.8] font-black font-sans text-[#e63946] mr-6 mt-2">${paragraphs.length > 0 ? paragraphs[0].charAt(0) : ''}</span>
+                                    ${phtml.replace(/<p[^>]*>.*?<\/p>/, `<p class="mb-10 text-justify">${paragraphs.length > 0 ? paragraphs[0].substring(1) : ''}</p>`)}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                else if (currentTheme === 'dark') {
+                    const phtml = paragraphs.map(p => `<p class="mb-10 text-justify">${p}</p>`).join('');
+                    htmlContent = `
+                        <div class="w-full h-full bg-[#111111] text-[#f8f8f8] p-[60px] box-border relative overflow-hidden z-0">
+                            <svg class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[1100px] text-[#d4af37] opacity-[0.04] -z-10" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="0.2"><circle cx="50" cy="50" r="40" /><circle cx="50" cy="50" r="30" /><path d="M50 0 L50 100 M0 50 L100 50 M15 15 L85 85 M15 85 L85 15" /></svg>
+                            <div class="w-full h-full border-[2px] border-[#d4af37]/40 p-[80px] flex flex-col items-center relative box-border">
+                                <div class="absolute top-6 left-6 w-16 h-16 border-t-[4px] border-l-[4px] border-[#d4af37]"></div><div class="absolute top-6 right-6 w-16 h-16 border-t-[4px] border-r-[4px] border-[#d4af37]"></div><div class="absolute bottom-6 left-6 w-16 h-16 border-b-[4px] border-l-[4px] border-[#d4af37]"></div><div class="absolute bottom-6 right-6 w-16 h-16 border-b-[4px] border-r-[4px] border-[#d4af37]"></div>
+                                <div class="text-[#d4af37] text-[28px] tracking-[0.6em] mb-24 uppercase font-serif font-bold flex items-center gap-6"><span class="w-16 h-[2px] bg-[#d4af37]/50"></span>${subtitle}<span class="w-16 h-[2px] bg-[#d4af37]/50"></span></div>
+                                <h1 class="text-[120px] font-serif text-center leading-[1.05] mb-24 w-[90%] mx-auto tracking-wide text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400" style="text-shadow: 0 10px 30px rgba(0,0,0,0.8);">${title}</h1>
+                                <div class="w-[30px] h-[30px] border border-[#d4af37] rotate-45 mb-20 relative flex items-center justify-center"><div class="w-[10px] h-[10px] bg-[#d4af37]"></div><div class="absolute -left-32 w-24 h-[1px] bg-[#d4af37]/40 rotate-[-45deg]"></div><div class="absolute -right-32 w-24 h-[1px] bg-[#d4af37]/40 rotate-[-45deg]"></div></div>
+                                <div class="text-[32px] leading-[1.7] font-serif text-gray-300 w-[85%] text-justify mx-auto opacity-95 columns-2 gap-[60px] column-balance">${phtml}</div>
+                                <div class="absolute bottom-[80px] left-[80px] right-[80px] flex justify-between items-end text-[#d4af37] text-2xl font-serif"><span class="tracking-widest border-b border-[#d4af37]/30 pb-2">PREMIUM EDITION</span><svg class="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><polygon points="12 2 15 10 23 10 17 15 19 23 12 18 5 23 7 15 1 10 9 10 12 2"/></svg><span class="tracking-widest border-b border-[#d4af37]/30 pb-2">AI GENERATED</span></div>
+                            </div>
+                        </div>
+                    `;
+                }
+                else if (currentTheme === 'newspaper') {
+                    const phtml = paragraphs.map(p => `<p class="mb-8 text-justify">${p}</p>`).join('');
+                    htmlContent = `
+                        <div class="w-full h-full bg-[#fdfbf7] text-black p-[80px] flex flex-col box-border relative overflow-hidden z-0">
+                            <svg class="absolute top-[280px] right-[100px] w-[220px] h-[220px] text-red-800/20 -rotate-12 pointer-events-none -z-10" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2"><circle cx="50" cy="50" r="45" /><circle cx="50" cy="50" r="40" stroke-dasharray="2 2" /><text x="50" y="55" font-size="16" font-family="serif" font-weight="bold" text-anchor="middle" fill="currentColor" stroke="none">VERIFIED</text><path d="M20 50 L80 50" stroke-width="1" opacity="0.5"/></svg>
+                            <div class="text-center border-t-[8px] border-b-[2px] border-black py-6 mb-12 relative">
+                                <div class="absolute top-[-14px] left-0 right-0 h-[2px] bg-black"></div>
+                                <div class="text-[28px] font-serif mb-6 uppercase tracking-[0.2em] flex justify-between px-4"><span class="font-bold">THE DAILY CHRONICLE</span><span class="italic">${subtitle}</span></div>
+                                <h1 class="text-[150px] font-black font-serif leading-[0.85] tracking-tighter mx-4 drop-shadow-sm">${title}</h1>
+                                <div class="absolute bottom-[-8px] left-0 right-0 h-[4px] bg-black"></div>
+                            </div>
+                            <div class="flex-1 columns-3 gap-[60px] column-balance text-[30px] leading-[1.5] font-serif text-gray-800" style="column-rule: 2px solid #ccc;">
+                                <div class="mb-6 font-bold text-[40px] leading-[1.2] border-b-[3px] border-double border-gray-400 pb-6 mb-8 bg-gray-100 p-4 shadow-inner">${paragraphs.length > 0 ? paragraphs[0] : ''}</div>
+                                ${paragraphs.slice(1).map(p => `<p class="mb-8 text-justify">${p}</p>`).join('')}
+                            </div>
+                            <div class="w-full border-t-2 border-black mt-8 pt-4 flex justify-between text-xl font-serif font-bold uppercase"><span>PAGE 01 — EXCLUSIVE</span><span>PRINTED IN A4 FORMAT</span></div>
+                        </div>
+                    `;
+                }
+            }
+
+            // 渲染到DOM
+            posterNode.innerHTML = htmlContent;
+        }
+
+        // 下载图片逻辑 (使用 html2canvas)
+        async function downloadPNG() {
+            const overlay = document.getElementById('loading-overlay');
+            const posterNode = document.getElementById('poster-node');
+            
+            // 显示加载遮罩
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            
+            try {
+                // 等待短暂时间确保字体和DOM渲染完毕
+                await new Promise(r => setTimeout(r, 300));
+
+                // 调用 html2canvas 渲染真实的 A4 节点
+                const canvas = await html2canvas(posterNode, {
+                    scale: 2, 
+                    useCORS: true,
+                    backgroundColor: null,
+                    logging: false,
+                    width: 1240,
+                    height: 1754
+                });
+
+                const imgData = canvas.toDataURL('image/png');
+                
+                const link = document.createElement('a');
+                link.download = `海报_${new Date().getTime()}.png`;
+                link.href = imgData;
+                link.click();
+                link.remove();
+            } catch (error) {
+                console.error("生成海报失败:", error);
+                alert("生成海报时发生错误，请重试。");
+            } finally {
+                // 隐藏加载遮罩
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }
+        }
+    </script>
+</body>
+</html>
