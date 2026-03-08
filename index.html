@@ -132,6 +132,7 @@
     <div id="loading-overlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 hidden flex-col items-center justify-center">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-black mb-4"></div>
         <p class="text-lg font-bold text-gray-800 tracking-widest">正在生成超清图像...</p>
+        <p class="text-sm text-gray-500 mt-2">（已优化渲染引擎，解决乱码错位问题）</p>
     </div>
 
     <script>
@@ -510,24 +511,41 @@
         async function downloadPNG() {
             const overlay = document.getElementById('loading-overlay');
             const posterNode = document.getElementById('poster-node');
+            const wrapper = document.getElementById('scale-wrapper');
             
             // 显示加载遮罩
             overlay.classList.remove('hidden');
             overlay.classList.add('flex');
             
             try {
-                // 等待短暂时间确保字体和DOM渲染完毕
-                await new Promise(r => setTimeout(r, 300));
+                // 等待字体全部加载完成，防止默认字体排版与渲染不一导致的重叠
+                await document.fonts.ready;
+                // 额外提供一点缓冲时间让页面重绘稳定
+                await new Promise(r => setTimeout(r, 500));
+
+                // 【核心修复点】
+                // 暂时移除父级的缩放。由于 html2canvas 在遇到含有 CSS transform scale 的父节点时，
+                // 计算节点几何坐标会发生致命错误，从而导致文字被极度压缩在左上角，且背景截断为黑色。
+                const originalTransform = wrapper.style.transform;
+                wrapper.style.transform = 'none';
+
+                // 给浏览器一点时间重排页面 (Reflow)
+                await new Promise(r => setTimeout(r, 100));
 
                 // 调用 html2canvas 渲染真实的 A4 节点
                 const canvas = await html2canvas(posterNode, {
                     scale: 2, 
                     useCORS: true,
-                    backgroundColor: null,
+                    backgroundColor: '#ffffff', // 明确设置白色背景，避免透明处变成黑边
                     logging: false,
                     width: 1240,
-                    height: 1754
+                    height: 1754,
+                    scrollY: 0, // 消除任何可能的滚动条偏移影响
+                    scrollX: 0
                 });
+
+                // 恢复之前的缩放状态，让用户界面恢复原状
+                wrapper.style.transform = originalTransform;
 
                 const imgData = canvas.toDataURL('image/png');
                 
